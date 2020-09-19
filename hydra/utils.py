@@ -20,10 +20,19 @@ from hydra.types import TargetConf
 log = logging.getLogger(__name__)
 
 
+def call_recursive(config: Any, *args: Any, **kwargs: Any) -> Any:
+    return _call(config, True, *args, **kwargs)
+
+
 def call(config: Any, *args: Any, **kwargs: Any) -> Any:
+    return _call(config, False, *args, **kwargs)
+
+
+def _call(config: Any, recursive: bool, *args: Any, **kwargs: Any) -> Any:
     """
     :param config: An object describing what to call and what params to use.
                    Must have a _target_ field.
+    :param recursive: True to recursively initialize child objects
     :param args: optional positional parameters pass-through
     :param kwargs: optional named parameters pass-through
     :return: the return value from the specified class or method
@@ -60,10 +69,22 @@ def call(config: Any, *args: Any, **kwargs: Any) -> Any:
         cls = _get_cls_name(config)
         type_or_callable = _locate(cls)
         if isinstance(type_or_callable, type):
-            return _instantiate_class(type_or_callable, config, *args, **kwargs)
+            return _instantiate_class(
+                type_or_callable,
+                config,
+                recursive,
+                *args,
+                **kwargs,
+            )
         else:
             assert callable(type_or_callable)
-            return _call_callable(type_or_callable, config, *args, **kwargs)
+            return _call_callable(
+                type_or_callable,
+                config,
+                recursive,
+                *args,
+                **kwargs,
+            )
     except InstantiationException as e:
         raise e
     except Exception as e:
@@ -72,6 +93,7 @@ def call(config: Any, *args: Any, **kwargs: Any) -> Any:
 
 # Alias for call
 instantiate = call
+instantiate_recursive = call_recursive
 
 
 def get_class(path: str) -> type:

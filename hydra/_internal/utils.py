@@ -493,20 +493,24 @@ def get_column_widths(matrix: List[List[str]]) -> List[int]:
 
 
 def _instantiate_class(
-    clazz: Type[Any], config: Union[ObjectConf, DictConfig], *args: Any, **kwargs: Any
+    clazz: Type[Any],
+    config: Union[ObjectConf, DictConfig],
+    recursive: bool,
+    *args: Any,
+    **kwargs: Any,
 ) -> Any:
-    # TODO: pull out to caller?
-    final_kwargs = _get_kwargs(config, **kwargs)
+    final_kwargs = _get_kwargs(config, recursive=recursive, **kwargs)
     return clazz(*args, **final_kwargs)
 
 
 def _call_callable(
     fn: Callable[..., Any],
     config: Union[ObjectConf, DictConfig],
+    recursive: bool,
     *args: Any,
     **kwargs: Any,
 ) -> Any:
-    final_kwargs = _get_kwargs(config, **kwargs)
+    final_kwargs = _get_kwargs(config, recursive=recursive, **kwargs)
     return fn(*args, **final_kwargs)
 
 
@@ -558,7 +562,11 @@ def _locate(path: str) -> Union[type, Callable[..., Any]]:
         raise ValueError(f"Invalid type ({type(obj)}) found for {path}")
 
 
-def _get_kwargs(config: Union[ObjectConf, DictConfig], **kwargs: Any) -> Any:
+def _get_kwargs(
+    config: Union[ObjectConf, DictConfig],
+    recursive: bool,
+    **kwargs: Any,
+) -> Any:
 
     if isinstance(config, ObjectConf):
         config = OmegaConf.structured(config)
@@ -605,6 +613,27 @@ def _get_kwargs(config: Union[ObjectConf, DictConfig], **kwargs: Any) -> Any:
 
     for k, v in passthrough.items():
         final_kwargs[k] = v
+
+    if recursive:
+        from hydra.utils import _call
+
+        def is_target(x: Any) -> bool:
+            return (
+                OmegaConf.is_config(x) and not OmegaConf.is_none(x) and "_target_" in x
+            )
+
+        for k, v in final_kwargs.items():
+            if is_target(v):
+                final_kwargs[k] = _call(v, recursive=recursive)
+            elif OmegaConf.is_dict(v) and not OmegaConf.is_none(v):
+                final_kwargs[k] = {
+                    key: _call(value, recursive=recursive) for key, value in v.items()
+                }
+            elif OmegaConf.is_list(v):
+                final_kwargs[k] = [_call(x, recursive=recursive) for x in v]
+            else:
+                final_kwargs[k] = v
+
     return final_kwargs
 
 
