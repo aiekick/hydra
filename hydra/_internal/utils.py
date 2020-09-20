@@ -632,6 +632,8 @@ def _get_kwargs(
             elif OmegaConf.is_list(v):
                 final_kwargs[k] = [_call(x, recursive=recursive) for x in v]
             else:
+                if OmegaConf.is_none(v):
+                    v = None
                 final_kwargs[k] = v
 
     return final_kwargs
