@@ -36,6 +36,16 @@ cs = ConfigStore.instance()
 cs.store(name="config", node=Config)
 
 
+# pretty print utility
+def pretty_print(tree: Tree, name: str = "root", depth: int = 0) -> None:
+    pad = " " * depth * 2
+    print(f"{pad}{name}({tree.value})")
+    if tree.left is not None:
+        pretty_print(tree.left, name="left", depth=depth + 1)
+    if tree.right is not None:
+        pretty_print(tree.right, name="right", depth=depth + 1)
+
+
 @hydra.main(config_name="config")
 def my_app(cfg: Config) -> None:
     tree: Tree = instantiate_recursive(cfg.tree)
@@ -44,13 +54,3 @@ def my_app(cfg: Config) -> None:
 
 if __name__ == "__main__":
     my_app()
-
-
-# pretty print utility
-def pretty_print(tree: Tree, name: str = "root", depth=0):
-    pad = " " * depth * 2
-    print(f"{pad}{name}({tree.value})")
-    if tree.left is not None:
-        pretty_print(tree.left, name="left", depth=depth + 1)
-    if tree.right is not None:
-        pretty_print(tree.right, name="right", depth=depth + 1)
